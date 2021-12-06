@@ -503,6 +503,143 @@ plot(res)
 #View(res)
 ```
 
+
+
+```{r, incidence2, message=FALSE,echo=FALSE, results='asis'}
+library(httr)
+library(aws.s3)
+source('functions.R')
+
+defStartdate <- NA
+defBuffer <- 7
+#defBaseline is the default value of points to use to compute the exponential growth control limits
+defBaseline <- 20
+
+######Regiones
+dfff=df_all[which(df_all$datex>"2021-11-22"),]
+dfff=dfff[which(dfff$datex<"2021-11-24"),]
+ftregion<-read.csv("newftregion.txt",sep=";",header=T)
+ftregion=ftregion[which(ftregion$fch_confirmado>"2021-01-01"),]
+
+b=ftregion$txt_nombreregion
+c=ftregion$cant_casosconfirmadosdiario
+#c=ftregion$cant_fallecidos
+#v=ftregion$cant_
+p=ftregion$cant_poblacion
+c=round((c/p*100000),1)
+d=ftregion$fch_confirmado
+v=ftregion$cant_casosconfirmados
+i=ftregion$id_region
+df_state=data.frame("date"=d,"state"=b,"fips"=i,"cases"=c,"deaths"=v)
+
+df_state$datex <- as.Date(df_state$date)
+
+df_state <- df_state[order(df_state$state, df_state$datex), ]
+df_state$New_Deaths     <- ave(df_state$deaths, df_state$state, FUN = function(x) { c(x[1], diff(x)) })
+df_state$New_Deaths_max <- ave(df_state$New_Deaths, df_state$state, FUN = max)
+df_state$level          <- 'state'
+
+df_state <- df_state[c('level', 'state', 'datex', 'New_Deaths', 'New_Deaths_max')]
+
+date_max_state <- max(df_state$datex, na.rm = TRUE)
+
+#df_all <- rbind(df_country, df_state)
+df_all <- rbind( df_state)
+
+ plot(df_all$datex, df_all$New_Deaths, type='l')
+
+# find phase dates for both raw and adjusted data
+df_all_raw <- by(
+  data = df_all,
+  INDICES = df_all[c('level', 'state')],
+  FUN = find_phase_dates,
+  adjust = FALSE)
+
+df_all_raw <- do.call(dplyr::bind_rows, df_all_raw)
+
+df_all_raw$type <- 'raw'
+
+df_all_adjusted <- by(
+  data = df_all,
+  INDICES = df_all[c('level', 'state')],
+  FUN = find_phase_dates,
+  adjust = TRUE)
+
+
+df_all_adjusted <- do.call(dplyr::bind_rows, df_all_adjusted)
+
+df_all_adjusted$type <- 'adjusted'
+
+df_all <- do.call(dplyr::bind_rows, list(df_all_raw, df_all_adjusted))
+
+
+
+if (interactive()) {
+
+  df_all_plot <- do.call(dplyr::bind_rows, list(df_all_raw, df_all_adjusted))
+
+  #df_all_plot <- df_all_adjusted
+
+  df_all_plot$lcl <- as.numeric(df_all_plot$lcl)
+  df_all_plot$New_Deaths_Dump <- as.numeric(df_all_plot$New_Deaths_Dump)
+  library(ggplot2)
+
+  for (type in sort(unique(df_all_plot$type))) {
+
+    df_type <- df_all_plot[df_all_plot$type == type, ]
+
+    for (level in sort(unique(df_type$level))) {
+
+      pdf(sprintf('samples/%s-%s.pdf', type, level), width = 11, height = 8.5)
+
+        df_level <- df_type[df_type$level == level, ]
+
+        for (state in sort(unique(df_level$state))) {
+
+          df_state <- df_level[df_level$state == state, ]
+
+          g <- ggplot(
+            data = df_state,
+            aes(
+              x = datex,
+              y = New_Deaths)) +
+            geom_point() +
+            geom_line() +
+            geom_line(
+              aes(
+                y = midline),
+              color = 'red') +
+            geom_line(
+              aes(
+                y = ucl),
+              color = 'blue',
+              linetype = 'dashed') +
+            geom_line(
+              aes(
+                y = lcl),
+              color = 'blue',
+              linetype = 'dashed') +
+            geom_point(
+              aes(
+                y = New_Deaths_Dump),
+              color = 'red') +
+            scale_y_continuous(
+              limits = c(0, max(20, 2 * max(df_state$New_Deaths, na.rm = TRUE), max(df_state$New_Deaths_Dump, na.rm = TRUE)))) +
+            labs(
+              x = df_state$state[1],
+              y = paste(df_state$type[1], 'deaths'))
+
+          print(g)
+        }
+
+      dev.off(which = dev.cur())
+    }
+  }
+  }
+
+##
+```
+
 # Indicadores usados:
 
 - R Efectivo: La tasa de reproducción efectiva fue calculada a nivel regional usando el método de Cori implementado en el paquete EpiEstim de R.
