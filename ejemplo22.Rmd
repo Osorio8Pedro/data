@@ -18,13 +18,15 @@ output:
 
 \renewcommand{\figurename}{Figura}
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(class.source = "watch-out",collapse = TRUE,
-  #comment = "#>",
-  fig.align = "center",
-  #fig.path = "man/figures/README-",
-  echo = TRUE,
-  fig.width = 8,
-  fig.height = 6)
+knitr::opts_chunk$set(
+	echo = TRUE,
+	fig.align = "center",
+	fig.height = 6,
+	fig.width = 8,
+	warning = FALSE,
+	class.source = "watch-out",
+	collapse = TRUE
+)
 require(ggplot2)
 require(gridExtra)
 require(RColorBrewer)
@@ -32,6 +34,8 @@ library(incidence2)
 library(trendbreaker) # for ASMODEE
 library(dplyr)        # for data manipulation
 library(future)
+library(httr)
+library(aws.s3)
 ```
 
 # Aysén, Atacama y Los Lagos llegan a un nivel alto de contagios.
@@ -505,9 +509,8 @@ plot(res)
 
 
 
-```{r, incidence2, message=FALSE,echo=FALSE, results='asis'}
-library(httr)
-library(aws.s3)
+```{r, incidence2, message=FALSE,echo=FALSE, results='asis',warning=F}
+
 source('functions.R')
 
 defStartdate <- NA
@@ -515,18 +518,19 @@ defBuffer <- 7
 #defBaseline is the default value of points to use to compute the exponential growth control limits
 defBaseline <- 20
 
-######Regiones
-dfff=df_all[which(df_all$datex>"2021-11-22"),]
-dfff=dfff[which(dfff$datex<"2021-11-24"),]
+#######Regiones
+#dfff=df_all[which(df_all$datex>"2021-11-22"),]
+#dfff=dfff[which(dfff$datex<"2021-11-24"),]
 ftregion<-read.csv("newftregion.txt",sep=";",header=T)
-ftregion=ftregion[which(ftregion$fch_confirmado>"2021-01-01"),]
-
+ftregion<-filter(ftregion,txt_nombreregion=='00. Nacional')
+#ftregion=ftregion[which(ftregion$fch_confirmado>"2021-01-01"),]
+ftregion=ftregion[which(ftregion$fch_confirmado<"2020-06-01"),]
 b=ftregion$txt_nombreregion
 c=ftregion$cant_casosconfirmadosdiario
 #c=ftregion$cant_fallecidos
 #v=ftregion$cant_
 p=ftregion$cant_poblacion
-c=round((c/p*100000),1)
+#c=round((c/p*100000),1)
 d=ftregion$fch_confirmado
 v=ftregion$cant_casosconfirmados
 i=ftregion$id_region
@@ -572,7 +576,75 @@ df_all_adjusted$type <- 'adjusted'
 
 df_all <- do.call(dplyr::bind_rows, list(df_all_raw, df_all_adjusted))
 
+####
+#first_date <-"2021-01-01"
+#last_date<-"2021-12-05"
 
+#pathways_recent <- filter(df_all, datex >= first_date)
+
+
+#lookup <- select(pathways_recent,midline, datex, ucl, lcl,New_Deaths_Dump,New_Deaths_Dump) %>%  distinct()
+#nhs_pathways_covid19$date<-as.Date(nhs_pathways_covid19$date)
+
+#dat <-
+ # df_all %>%
+  #incidence(date_index = datex, groups = state, count = New_Deaths) %>%
+  #left_join(lookup, by = c("date_index" = "datex"))
+
+
+dat<-filter(df_state,state=='00. Nacional')# nhs_region=='17. Norte Grande' |nhs_region=='18. Norte Chico' | nhs_region=='19. Zona Central' |nhs_region=='20. Zona Sur'| nhs_region=='21. Zona Austral'|nhs_region=='22. Regions Sin Metropolitana')
+
+ #                         nhs_region=='16. Región de Magallanes y Antártica Chilena')
+#nhs_pathways_covid19<-filter(nhs_pathways_covid19, id_region=='1'|id_region=='2'|id_region=='3'|id_region=='4'|id_region=='5'|id_region=='6'|id_region=='7'|id_region=='8'|id_region=='9'|id_region=='10'|id_region=='11'|id_region=='12'|id_region=='13'|id_region=='14'|id_region=='15'|id_region=='16')
+
+                           #state=='01. Región de Arica y Parinacota')#| nhs_region=='02. Región de Tarapacá'| nhs_region=='03. Región de Antofagasta' | nhs_region=='04. Región de Atacama' | nhs_region=='05. Región de Coquimbo' | nhs_region=='06. Región de Valparaíso' | nhs_region=='07. Región Metropolitana de Santiago'  | nhs_region=="08. Región del Libertador Bernardo O'Higgins"|nhs_region=='09. Región del Maule' |
+                         #  nhs_region=='10. Región del Ñuble'| nhs_region=='11. Región del Bío-Bío'| nhs_region=='12. Región de La Araucanía' | nhs_region=='13. Región de Los Ríos' | nhs_region=='14. Región de Los Lagos' | nhs_region=='15. Región de Aysén del General Ibañez del Campo' | nhs_region=='16. Región de Magallanes y Antártica Chilena'  )
+df_all_plot <- do.call(dplyr::bind_rows, list(df_all_raw, df_all_adjusted))
+
+  df_all_plot <- df_all_adjusted
+
+  df_all_plot$lcl <- as.numeric(df_all_plot$lcl)
+  df_all_plot$New_Deaths_Dump <- as.numeric(df_all_plot$New_Deaths_Dump)
+
+ df_all_plot$type<- unique(df_all_plot$type)
+df_type <- df_all_plot[df_all_plot$type == type, ]
+sort(unique(df_type$level))
+df_level <- df_type[df_type$level == level, ]
+df_state <- df_level[df_level$state == state, ]
+dat <- rbind( dat,)
+
+g <- ggplot(
+            data = df_all,
+            aes(
+              x = datex,
+              y = New_Deaths)) +
+            geom_point() +
+            geom_line() +
+            geom_line(
+              aes(
+                y = midline),
+              color = 'red') +
+            geom_line(
+              aes(
+                y = ucl),
+              color = 'blue',
+              linetype = 'dashed') +
+            geom_line(
+              aes(
+                y = lcl),
+              color = 'blue',
+              linetype = 'dashed') +
+            geom_point(
+              aes(
+                y = New_Deaths_Dump),
+              color = 'red') +
+            scale_y_continuous(
+              limits = c(0, max(20, 2 * max(df_state$New_Deaths, na.rm = TRUE), max(df_state$New_Deaths_Dump, na.rm = TRUE)))) +
+            labs(
+              x = df_state$state[1],
+              y = paste(df_state$type[1], 'deaths'))
+plot(g)
+####
 
 if (interactive()) {
 
@@ -584,13 +656,13 @@ if (interactive()) {
   df_all_plot$New_Deaths_Dump <- as.numeric(df_all_plot$New_Deaths_Dump)
   library(ggplot2)
 
-  for (type in sort(unique(df_all_plot$type))) {
+  for (type in (unique(df_all_plot$type))) {
 
     df_type <- df_all_plot[df_all_plot$type == type, ]
 
     for (level in sort(unique(df_type$level))) {
 
-      pdf(sprintf('samples/%s-%s.pdf', type, level), width = 11, height = 8.5)
+      #pdf(sprintf('samples/%s-%s.pdf', type, level), width = 11, height = 8.5)
 
         df_level <- df_type[df_type$level == level, ]
 
@@ -636,7 +708,7 @@ if (interactive()) {
     }
   }
   }
-
+plot(g)
 ##
 ```
 
