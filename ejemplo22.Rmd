@@ -523,16 +523,20 @@ defBaseline <- 20
 #dfff=dfff[which(dfff$datex<"2021-11-24"),]
 ftregion<-read.csv("newftregion.txt",sep=";",header=T)
 ftregion<-filter(ftregion,txt_nombreregion=='00. Nacional')
-#ftregion=ftregion[which(ftregion$fch_confirmado>"2021-01-01"),]
-ftregion=ftregion[which(ftregion$fch_confirmado<"2020-06-01"),]
+ftregion=ftregion[which(ftregion$fch_confirmado>"2021-01-01"),]
+#ftregion=ftregion[which(ftregion$fch_confirmado<"2020-04-25"),]
 b=ftregion$txt_nombreregion
-c=ftregion$cant_casosconfirmadosdiario
+c=(round(log10(ftregion$cant_casosconfirmadosdiario),5))#*100
+c=10^(ftregion$cant_casosconfirmadosdiario)
+c=(ftregion$cant_casosconfirmadosdiario)
 #c=ftregion$cant_fallecidos
 #v=ftregion$cant_
 p=ftregion$cant_poblacion
 #c=round((c/p*100000),1)
-d=ftregion$fch_confirmado
-v=ftregion$cant_casosconfirmados
+d=(ftregion$fch_confirmado)
+v=(round(log10(ftregion$cant_casosconfirmados),5))#*100
+v=10^(ftregion$cant_casosconfirmados)
+v=(ftregion$cant_casosconfirmados)
 i=ftregion$id_region
 df_state=data.frame("date"=d,"state"=b,"fips"=i,"cases"=c,"deaths"=v)
 
@@ -575,7 +579,7 @@ df_all_adjusted <- do.call(dplyr::bind_rows, df_all_adjusted)
 df_all_adjusted$type <- 'adjusted'
 
 df_all <- do.call(dplyr::bind_rows, list(df_all_raw, df_all_adjusted))
-
+#######################################################################
 ####
 #first_date <-"2021-01-01"
 #last_date<-"2021-12-05"
@@ -645,6 +649,37 @@ g <- ggplot(
               y = paste(df_state$type[1], 'deaths'))
 plot(g)
 ####
+#df_all$New_Deaths<-10^(df_all$New_Deaths)
+df_state$New_Deaths<-(round(log10(df_state$New_Deaths),3))
+df_state$New_Deaths_max<-(round(log10(df_state$New_Deaths_max),3))
+df_state$midline<-(round(log10(df_state$midline),3))
+df_state$lcl<-(round(log10(df_state$lcl),3))
+df_state$ucl<-(round(log10(df_state$ucl),3))
+
+df_all$New_Deaths<-(round(log10(df_all$New_Deaths),3))
+df_all$New_Deaths_max<-(round(log10(df_all$New_Deaths_max),3))
+df_all$midline<-(round(log10(df_all$midline),3))
+df_all$lcl<-(round(log10(df_all$lcl),3))
+df_all$ucl<-(round(log10(df_all$ucl),3))
+
+df_all_adjusted$New_Deaths<-(round(log10(df_all_adjusted$New_Deaths),3))
+df_all_adjusted$New_Deaths_max<-(round(log10(df_all_adjusted$New_Deaths_max),3))
+df_all_adjusted$midline<-(round(log10(df_all_adjusted$midline),3))
+df_all_adjusted$lcl<-(round(log10(df_all_adjusted$lcl),3))
+df_all_adjusted$ucl<-(round(log10(df_all_adjusted$ucl),3))
+
+df_all_plot$New_Deaths<-(round(log10(df_all_plot$New_Deaths),3))
+df_all_plot$New_Deaths_max<-(round(log10(df_all_plot$New_Deaths_max),3))
+df_all_plot$midline<-(round(log10(df_all_plot$midline),3))
+df_all_plot$lcl<-(round(log10(df_all_plot$lcl),3))
+df_all_plot$ucl<-(round(log10(df_all_plot$ucl),3))
+
+df_all_raw$New_Deaths<-(round(log10(df_all_raw$New_Deaths),3))
+df_all_raw$New_Deaths_max<-(round(log10(df_all_raw$New_Deaths_max),3))
+df_all_raw$midline<-(round(log10(df_all_raw$midline),3))
+df_all_raw$lcl<-(round(log10(df_all_raw$lcl),3))
+df_all_raw$ucl<-(round(log10(df_all_raw$ucl),3))
+
 
 if (interactive()) {
 
@@ -662,7 +697,7 @@ if (interactive()) {
 
     for (level in sort(unique(df_type$level))) {
 
-      #pdf(sprintf('samples/%s-%s.pdf', type, level), width = 11, height = 8.5)
+      pdf(sprintf('samples/%s-%s.pdf', type, level), width = 11, height = 8.5)
 
         df_level <- df_type[df_type$level == level, ]
 
@@ -696,10 +731,11 @@ if (interactive()) {
                 y = New_Deaths_Dump),
               color = 'red') +
             scale_y_continuous(
-              limits = c(0, max(20, 2 * max(df_state$New_Deaths, na.rm = TRUE), max(df_state$New_Deaths_Dump, na.rm = TRUE)))) +
+              limits = c(0, max(4, 2 * max(df_state$New_Deaths, na.rm = TRUE), max(df_state$New_Deaths_Dump, na.rm = TRUE)))) +
             labs(
               x = df_state$state[1],
               y = paste(df_state$type[1], 'deaths'))
+          g=g + ylab('Casos nuevos de Covid-19')
 
           print(g)
         }
@@ -709,6 +745,13 @@ if (interactive()) {
   }
   }
 plot(g)
+
+tabla=df_all[which(df_all$datex>"2021-12-02"),]
+tabla=tabla[which(tabla$datex<"2021-12-04"),]
+
+library(xtable)
+DATA2=tabla %>% select(statephase,epoch)
+xtable(DATA2)
 ##
 ```
 
