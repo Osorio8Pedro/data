@@ -1,0 +1,408 @@
+---
+title: |
+  ![](Untitled.png){width=1in}
+  </center> **Informe Semanal**
+
+header-includes: 
+   \usepackage{graphicx}
+   \usepackage{fancyhdr}
+   \pagestyle{fancy}
+   \setlength{\headheight}{60.50192pt}
+   \fancyhead[R]{\includegraphics[width=2cm]{Untitled.png}}
+
+output:
+  pdf_document: default
+  html_document: default
+  fig_caption: yes
+  lang: spanish
+  word_document: default
+---
+
+\renewcommand{\figurename}{Figura}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(class.source = "watch-out",collapse = TRUE,
+  #comment = "#>",
+  fig.align = "center",
+  #fig.path = "man/figures/README-",
+  echo = TRUE,
+  fig.width = 8,
+  fig.height = 6)
+require(ggplot2)
+require(gridExtra)
+require(RColorBrewer)
+library(incidence2) 
+library(trendbreaker) # for ASMODEE
+library(dplyr)        # for data manipulation
+library(future)
+plan("multisession")
+```
+
+```{r,echo=FALSE,results='asis'}
+pos=as.numeric(format(Sys.Date(), "%m"))
+meses=c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
+fecha0=paste(format(Sys.Date()-6, "%d"),"de",meses[pos],sep=" ")
+fecha1=paste(format(Sys.Date(), "%d"),"de",meses[pos],sep=" ")
+cat(paste("En este informe presentamos el Analisis Semanal Nº47 de Covid-19 elaborado por el **G**rupo **E**pidemiológico **M**atemático para la **V**igilancia de **E**pidemias y **P**andemia **(GEMVEP)** de la Universidad de Santiago. Los datos usados en este informe consideran los casos de Covid-19 informados entre el",fecha0,"y el",fecha1,".Los datos provienen de las siguientes fuentes de información:"))
+```
+
+- [**Reporte Covid-19 del dia Jueves 7 de Octubre del Ministerio de Salud**](https://s3.amazonaws.com/gobcl-prod/public_files/Campa%C3%B1as/Corona-Virus/Reportes/05.10.2021_Reporte_Covid19.pdf)
+
+- [**Informe Epidemiológico con datos hasta el Lunes 4 de Octubre del Ministerio de Salud**](https://www.minsal.cl/wp-content/uploads/2021/09/Informe-Epidemiolo%CC%81gico-153.pdf)
+
+- [**Informe de Testeo, Trazabilidad y Aislamiento del del Ministerio de Salud**](https://www.minsal.cl/wp-content/uploads/2021/09/TTA-18-al-24-de-septiembre.pdf)
+
+- [**Datos de Defunciones desde el Departamento de Estadísticas e Información de Salud**](https://deis.minsal.cl/)
+
+## Balance Semanal
+
+```{r,echo=FALSE,results='asis',fig.cap='Balance Semanal: Tasa de Incidencia es número de casos nuevos en la última semana cada 100.000 habitantes, Tasa de positividad es numero de casos nuevos confirmados con PCR dividido numero de examenes PCR por semana'}
+#setwd("E:/Usuario/Desktop/U/Practica GEMVEP/markdown")
+ftregion<-read.csv("ftregion.txt",sep=";",header=T)
+fecha=names(table(ftregion$fch_confirmado))
+l1=length(fecha)
+#Positividad Ultima Semana
+ftregion3=ftregion[which(ftregion$fch_confirmado >=fecha[l1-6]),]
+tabla1=aggregate(cant_pcr~id_region,ftregion3,sum)
+tabla3=aggregate(cant_poblacion~id_region,ftregion3,mean)
+#tabla1[which(tabla1[,1]==0),2]=tabla1[which(tabla1[,1]==0),2]+25817
+tabla2=aggregate(cant_casosconfirmadosdiario~id_region,ftregion3,sum)
+#tabla2[which(tabla2[,1]==0),2]=tabla2[which(tabla2[,1]==0),2]+2457
+posit=tabla2[,2]/tabla1[,2]
+inc=tabla2[,2]/tabla3[,2]*100000
+incnac=round(inc[1]/7,2)
+times=round(10/incnac,1)
+bajo="bajo"
+if(incnac>10)
+{
+  times=round(incnac/10,1)
+  bajo="sobre"
+}
+tabla=cbind(tabla1,tabla2[,2],posit,inc)
+pos=order(tabla[2:17,5],decreasing=T)
+regiones=c("Tarapaca","Antofagasta","Atacama","Coquimbo","Valparaiso","Ohiggins","Maule","Bio-Bio","Araucania","Los Lagos","Aysen","Magallanes","Metropolitana","Los Rios","Arica","Nuble")
+maxim=cbind(regiones[pos[1:6]],round(tabla[2:17,5][pos[1:6]],2))
+pos2=order(tabla[2:17,3],decreasing=T)
+#maxim=cbind(regiones[pos[1:5]],round(tabla[2:6,5][pos[1:5]],5))
+minim=cbind(regiones[pos[14:16]],round(tabla[2:17,5] [pos[14:16]],5))
+
+#Positividad Penultima Semana
+ftregion3=ftregion[which(ftregion$fch_confirmado >=fecha[l1-13] & ftregion$fch_confirmado <=fecha[l1-7] ),]
+tabla1=aggregate(cant_pcr~id_region,ftregion3,sum)
+tabla2=aggregate(cant_casosconfirmadosdiario~id_region,ftregion3,sum)
+posit=tabla2[,2]/tabla1[,2]
+tabla0=cbind(tabla1,tabla2[,2],posit)
+var=round(((tabla[,3]/tabla0[,3])-1)*100,2)
+pos=order(var[2:17],decreasing=T)
+maxvar=cbind(regiones[pos[1:6]],var[2:17][pos[1:6]])
+minvar=cbind(regiones[pos[14:16]],var[2:17][pos[14:16]])
+var1=round(((tabla[1,3]/tabla0[1,3])-1)*100,2)
+fechas=names(table(ftregion$fch_confirmado))
+l1=length(fechas)
+ftregion2=ftregion[which(ftregion$fch_confirmado==fechas[l1]),]
+ftregion3=ftregion[which(ftregion$fch_confirmado==fechas[l1-7]),]
+b=ftregion2$txt_nombreregion
+f=ftregion2$porc_roefectivo
+f1=ftregion3$porc_roefectivo
+texto1="una disminucion"
+if(var1>0)
+texto1="un aumento"
+cat(paste("En la ultima semana se han confirmado",tabla[1,3],"casos de Covid-19 en Chile. Una tasa de incidencia de",incnac,"cada 100.000 habitantes. Esto es ",texto1,"de un",var1,"%","de los casos respecto de la semana anterior. Nuestra estimación del R Efectivo a nivel nacional es de",round(f[1],2),". La incidencia actual esta",times,"veces",bajo,"un nivel crítico de contagios.  \n  \n",sep=" "))
+
+cat(paste("Las regiones con las mayores tasas de incidencia promedio en la ultima semana son:  \n  \n",maxim[1,1],round(as.numeric(maxim[1,2])/7,2)," casos cada 100.000 habitantes   \n",maxim[2,1],round(as.numeric(maxim[2,2])/7,2),"  \n",maxim[3,1],round(as.numeric(maxim[3,2])/7,2),"  \n",maxim[4,1],round(as.numeric(maxim[4,2])/7,2),"  \n",maxim[5,1],round(as.numeric(maxim[5,2])/7,2),"  \n  \n",sep=" "))
+cat(paste("Las regiones con las menores tasas de incidencia promedio en la ultima semana son:  \n  \n",minim[1,1],round(as.numeric(minim[1,2])/7,2),"casos cada 100.000 habitantes  \n",minim[2,1],round(as.numeric(minim[2,2])/7,2),"  \n",minim[3,1],round(as.numeric(minim[3,2])/7,2),"  \n  \n",sep=" "))
+Nf=length(which(maxim[,2]>70))
+cat(paste("Actualmente,",Nf,"de 16 regiones del país tienen un nivel crítico de contagios.  \n  \n"),sep=" ")
+cat(paste("Las regiones con los mayores aumentos de casos de Covid-19 en la ultima semana son:  \n  \n",maxvar[1,1],"+",maxvar[1,2],"%    \n",maxvar[2,1],"+",maxvar[2,2],"%    \n",maxvar[3,1],"+",maxvar[3,2],"%    \n",maxvar[4,1],"+",maxvar[4,2],"%    \n",maxvar[5,1],"+",maxvar[5,2],"%    \n",sep=" "))
+cat(paste("Mientras que las regiones con las mayores disminuciones de casos de Covid-19 en la ultima semana son:  \n  \n",minvar[1,1],minvar[1,2],"%    \n",minvar[2,1],minvar[2,2],"%    \n",minvar[3,1],minvar[3,2],"%    \n",sep=" "))
+cat("  \n En la siguiente figura mostramos nuestro balance de indicadores de circulación del Covid-19 por región del país en la ultima semana.     \n")
+  e=ftregion2$num_cluster
+   e1=rep(0,length(e))
+   e[16]=2 #Arica
+   e[2]=3 #Tarapaca
+   e[3]=2 #Antofa
+   e[4]=3 #Atacama
+   e[5]=2 #Coquimbo
+   e[6]=3  #Valpo
+   e[14]=3  #Metro
+   e[7]=2   #Ohiggins
+   e[8]=2  #Maule
+   e[17]=2 #uble
+   e[9]=2  #BIOBIO
+   e[10]=2  #Araucana
+   e[15]=2  #Losrios
+   e[11]=2  #LosLagos
+   e[12]=3 #Aysen
+   e[13]=2  #Magallanes
+   e1[which(e==1)]="Riesgo Bajo"
+   e1[which(e==2)]="Riesgo Medio"
+   e1[which(e==3)]="Riesgo Alto"
+   e1[is.na(e)]=NA
+   diff2=round(f/f1*100-100,2)
+   varpos=round(((tabla[,4]/tabla0[,4])-1)*100,2)
+   nombres=c("Tarapaca","Antofagasta","Atacama","Coquimbo","Valparaiso","Ohiggins","Maule","Bio-Bio","Araucania","Los Lagos","Aysen","Magallanes","Metropolitana","Los Rios","Arica","Nuble")
+   df=data.frame("Region"=b,"Tasa de Positividad"=paste(round(tabla[,4]*100,1),"% (",round(varpos,1),"%)",sep=""),"R Efectivo"=paste(round(f,2)," (",round(diff2,2),"%)",sep=""),"Tasa Incidencia"=paste(round(tabla[,5]/7,2)," (",round(var,2),"%)",sep=""), "Cluster"=e1)
+   
+   e2=e[2:17]
+   df=df[2:17,]
+   df[,1]=nombres
+   df=df[c(15,1:5,13,6:7,16,8:9,14,10:12),]
+   df2=df
+   alerta=df[which(df[,5]=="Riesgo Alto"),1]
+   maxpos=which.max(tabla[,4])
+   maxr=which.max(f)
+   texto=paste("  \n Damos alerta en la region de",alerta,sep=" ")
+   if(length(alerta)>1)
+   {
+    texto="  \n Damos alerta en las regiones de"    
+    for(i in 1:length(alerta))
+    {
+        texto=paste(texto,alerta[i],sep=" ")
+    }
+   }
+   #df2[,2]=paste(df2[,2],"%")
+   e2=e2[c(15,1:5,13,6:7,16,8:9,14,10:12)]
+   colores=c("green","yellow","red")
+   tt=ttheme_default(base_size = 8, base_colour = "black")
+   fontmatrix=matrix(1, ncol=ncol(df),nrow=nrow(df),byrow=TRUE)
+   fontmatrix[which(e2==3),]=2
+   colormatrix=matrix("green", ncol=ncol(df),nrow=nrow(df),byrow=TRUE)
+   colormatrix[which(e2==3),]="red"
+   colormatrix[which(e2==2),]="yellow"
+   tt$core$fg_params <- list(fontface=fontmatrix)
+   tt$core$bg_params <- list(fill=colormatrix,alpha=0.7)
+   tt$colhead$fg_params <- list(fontface=rep(2,5))
+   tt$colhead$bg_params <- list(fill="white")
+   grid.table(format(df2, decimal.mark = ",", big.mark = ".",decimals=2),rows =NULL,theme=tt)
+   cat(paste(texto,".Además, la región de" ,regiones[tabla[maxpos,1]],"tiene la mayor tasa de Positividad con (",round(tabla[maxpos,4]*100,1),"%) y la region de ",regiones[tabla[maxr,1]],"tiene el mayor R efectivo con (",round(f[maxr],1),")
+ \n",sep=" "))
+```
+
+## Hospitalizaciones
+
+```{r,echo=FALSE,results='asis',fig.cap='Porcentaje de Ocupación UCI por Region'}
+ftnacional<-read.csv("ftnacional.txt",sep=";",header=T)
+ftregion2=ftnacional[which(ftnacional$fch_confirmado>="2020-04-12"),]
+fecha=ftnacional$fch_confirmado
+fecha1=fecha[length(fecha)]
+pos=as.numeric(format(as.Date(fecha1), "%m"))
+meses=c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
+fecha0=paste(format(as.Date(fecha1),"%d"),"de",meses[pos],sep=" ")
+Cifra=ftregion2$cant_pacientesvmi
+valor=ftregion2$cant_uci
+vmi1=Cifra[length(Cifra)]
+uci1=valor[length(Cifra)]
+diff2=abs(Cifra[length(Cifra)]-Cifra[length(Cifra)-7])
+diff1=abs(valor[length(Cifra)]-valor[length(Cifra)-7])
+texto1=paste("(",diff1,"menos que semana previa)")
+if(diff1>0)
+	texto1=paste("(",diff1,"mas que semana previa)")
+texto2=paste("(",diff2,"menos que semana previa)")
+if(diff2>0)
+	texto1=paste("(",diff2,"mas que semana previa)")
+
+cat(paste("El número de pacientes con Covid-19 en UCI informados el",fecha0,"fue",uci1,texto1,". Además, este día se informaron",vmi1," pacientes Covid-19 en ventilación mecánica invasiva (VMI)",texto2,".  \n",sep=" "))
+
+uci<-read.csv("Camas_UCI_Diarias.txt",sep=",",header=T)
+nombres=names(table(uci$Region))
+porc=rep(0,length(nombres))
+for(i in 1:length(nombres))
+{
+	aux=uci[which(uci[,1]==nombres[i]),]
+	aux2=aux[,dim(aux)[2]]
+	porc[i]=sum(aux2[2:3])/aux2[1]
+}
+id_region=c(2,9,15,3,11,8,4,10,14,12,7,13,16,6,1,0,5)
+pos=c(15,1,4,7,17,14,11,6,2,8,5,10,12,9,3,13)
+nombres2=nombres[pos]
+porc2=porc[pos]
+nac=porc[-pos]
+regiones=c("Tarapaca","Antofagasta","Atacama","Coquimbo","Valparaiso","Ohiggins","Maule","Bio-Bio","Araucania","Los Lagos","Aysen","Magallanes","Metropolitana","Los Rios","Arica","Nuble")
+df=data.frame("Region"=regiones,"id_region"=1:16,"Ocupacion"=porc2)
+df=df[c(15,1:5,13,6:7,16,8:9,14,10:12),]
+df1=df[order(df[,3],decreasing=T),]
+cat(paste("Las regiones con mayor porcentaje de ocupación UCI al día son:  \n  \n",df1[1,1],round(as.numeric(df1[1,3])*100,2),"%  \n",df1[2,1],round(as.numeric(df1[2,3])*100,2),"%  \n",df1[3,1],round(as.numeric(df1[3,3])*100,2),"%  \n",df1[4,1],round(as.numeric(df1[4,3])*100,2),"%  \n",df1[5,1],round(as.numeric(df1[5,3])*100,2),"%  \n",sep=" "))
+lenuci=length(which(df1[,3]>0.8))
+cat(paste("Este dia,",lenuci,"de las 16 regiones del país tuvieron una ocupación de camas UCI superior al 80%."))
+cat(paste("Las regiones que tuvieron menor ocupación UCI son:  \n  \n",df1[14,1],round(as.numeric(df1[14,3])*100,2),"%  \n",df1[15,1],round(as.numeric(df1[15,3])*100,2),"%  \n",df1[16,1],round(as.numeric(df1[16,3])*100,2),"%  \n",sep=" "))
+barplot(df[,3]*100,main="% Ocupacion UCI por Region",xlab="",ylab="% Ocupacion UCI",ylim=c(0,100), names.arg=df[,1],cex.names=0.5,las=2,col=brewer.pal(9, "Blues"),yaxt="n")
+axis(2, at=c(0,10,25,40,55,70,85,100), lab=paste(c(0,10,25,40,55,70,85,100),"%"), las=TRUE)
+abline(h=nac*100,col="red",lwd=2)
+text(13,0.98*100,paste("Ocupacion Nacional",round(nac*100,2),"%"),col="red",lwd=3)
+```
+
+```{r,echo=FALSE,results='asis',fig.cap='Porcentaje de Ocupación UCI sobre basal de camas disponibles en 2019 por Region'}
+uci<-read.csv("Camas_UCI_Diarias.txt",sep=",",header=T)
+nombres=names(table(uci$Region))
+porc=rep(0,length(nombres))
+for(i in 1:length(nombres))
+{
+	aux=uci[which(uci[,1]==nombres[i]),]
+	aux2=aux[,dim(aux)[2]]
+	porc[i]=aux2[1]-sum(aux2[2:3])
+}
+id_region=c(2,9,15,3,11,8,4,10,14,12,7,13,16,6,1,0,5)
+pos=c(15,1,4,7,17,14,11,6,2,8,5,10,12,9,3,13)
+nombres2=nombres[pos]
+porc2=porc[pos]
+regiones=c("Tarapaca","Antofagasta","Atacama","Coquimbo","Valparaiso","Ohiggins","Maule","Bio-Bio","Araucania","Los Lagos","Aysen","Magallanes","Metropolitana","Los Rios","Arica","Nuble")
+df=data.frame("Region"=regiones,"id_region"=1:16,"Ocupacion"=porc2)
+df=df[c(15,1:5,13,6:7,16,8:9,14,10:12),]
+df1=df[order(df[,3]),]
+cat(paste("Las regiones con menor cantidad de camas UCI disponibles son:  \n  \n",df1[1,1],df1[1,3],"camas UCI disponibles  \n",df1[2,1],df1[2,3],"  \n",df1[3,1],df1[3,3],"  \n",df1[4,1],df1[4,3],"  \n",df1[5,1],df1[5,3],"  \n",sep=" "))
+
+nombres=names(table(uci$Region))
+porc=rep(0,length(nombres))
+for(i in 1:length(nombres))
+{
+	aux=uci[which(uci[,1]==nombres[i]),]
+	aux2=aux[,dim(aux)[2]]
+	porc[i]=sum(aux2[2:3])/sum(aux2[4])
+}
+id_region=c(2,9,15,3,11,8,4,10,14,12,7,13,16,6,1,0,5)
+pos=c(15,1,4,7,17,14,11,6,2,8,5,10,12,9,3,13)
+nombres2=nombres[pos]
+porc2=porc[pos]
+regiones=c("Tarapaca","Antofagasta","Atacama","Coquimbo","Valparaiso","Ohiggins","Maule","Bio-Bio","Araucania","Los Lagos","Aysen","Magallanes","Metropolitana","Los Rios","Arica","Nuble")
+df=data.frame("Region"=regiones,"id_region"=1:16,"Ocupacion"=porc2)
+nac=porc[-pos]
+df=df[c(15,1:5,13,6:7,16,8:9,14,10:12),]
+df1=df[order(df[,3],decreasing=T),]
+cat(paste("Las regiones con mayor proporción de camas UCI usadas sobre el basal de camas UCI disponibles en 2019 son:  \n  \n",df1[1,1],round(as.numeric(df1[1,3])*100,2),"%  \n",df1[2,1],round(as.numeric(df1[2,3])*100,2),"%  \n",df1[3,1],round(as.numeric(df1[3,3])*100,2),"%  \n",df1[4,1],round(as.numeric(df1[4,3])*100,2),"%  \n",df1[5,1],round(as.numeric(df1[5,3])*100,2),"%  \n",sep=" "))
+lenuci=length(which(df1[,3]>1))
+cat(paste("Este dia,",lenuci,"de las 16 regiones del país tienen una ocupación sobre el 100% de camas bases del año 2019."))
+barplot(df[,3]*100,main="% Camas UCI usadas sobre basal 2019",xlab="",ylab="% Camas UCI usadas sobre basal 2019", names.arg=df[,1],cex.names=0.5,las=2,col=brewer.pal(9, "Blues"),ylim=c(0,250),yaxt="n")
+axis(2, at=c(0,100,200,250,300,350,400,450,500), lab=paste(c(0,100,200,250,300,350,400,450,500),"%"), las=TRUE,cex.axis=0.8)
+abline(h=nac*100,col="red",lwd=2)
+text(10,2.40*100,paste("% Camas UCI usadas sobre basal 2019 Pais",round(nac*100,2),"%"),col="red",lwd=2)
+```
+\newpage
+## Situación Comunal
+
+```{r,echo=FALSE,results='asis',fig.cap='Porcentaje de Ocupación UCI sobre basal de camas disponibles en 2019 por Region',warning=F}
+
+ftcomuna=read.csv("ftcomuna.txt",sep=";",header=T)
+t0=names(table(ftcomuna$fch_confirmado))
+
+ftcomuna2=ftcomuna[which(as.Date(ftcomuna$fch_confirmado)==max(as.Date(t0))),]
+ftcomuna3=ftcomuna[which(as.Date(ftcomuna$fch_confirmado)==max(as.Date(t0))-7),]
+ftcomuna4=ftcomuna[which(as.Date(ftcomuna$fch_confirmado)==max(as.Date(t0))-14),]
+casos=ftcomuna2$cant_casosconfirmados-ftcomuna3$cant_casosconfirmados
+    	p22=which(casos<0)
+    	if(length(p22)>0)
+    		casos[p22]=0
+    	p2=(casos/ftcomuna2$cant_poblacioncomuna)*100000
+ l0=length(ftcomuna2$txt_comuna[which(p2>70)])
+ cat(paste("En el analisis comunal notamos que",l0,"de 346 comunas del país tienen un nivel crítico de contagios.  \n  \n"),sep=" ")
+  casos0=ftcomuna3$cant_casosconfirmados-ftcomuna4$cant_casosconfirmados
+    	p0=(casos/casos0-1)*100
+    	p0=ifelse(p0==Inf,0,p0)
+   	
+a=which(ftcomuna2$cant_poblacioncomuna>25000)
+p3=p2[a]
+comunas_mas_casos=head(order(p3,decreasing = T),10)
+txt_comunas_mas_casos=ftcomuna2$txt_comuna[a][comunas_mas_casos]
+casos2=p3[comunas_mas_casos]
+cat(paste("Las comunas de más de 25.000 habitantes con las mayores tasas de incidencia promedio en la ultima semana son:  \n  \n",txt_comunas_mas_casos[1],round(casos2[1]/7,2)," casos cada 100.000 habitantes   \n",
+    txt_comunas_mas_casos[2],round(casos2[2]/7,2),"  \n",txt_comunas_mas_casos[3],round(casos2[3]/7,2),"  \n",txt_comunas_mas_casos[4],round(casos2[4]/7,2),"  \n",txt_comunas_mas_casos[5],round(casos2[5]/7,2),"  \n  \n",sep=" "))
+
+p00=p0[a]
+comunas_mas_aumento=head(order(p00,decreasing = T),10)
+txt_comunas_mas_aumento=ftcomuna2$txt_comuna[a][comunas_mas_aumento]
+casos00=p00[comunas_mas_aumento]
+cat(paste("Las comunas de más de 25.000 habitantes con mayor aumento de casos en la ultima semana son:  \n  \n",txt_comunas_mas_aumento[1],"+",round(casos00[1]/7,2),"%    \n",
+    txt_comunas_mas_aumento[2],"+",round(casos00[2]/7,2),"%    \n",txt_comunas_mas_aumento[3],"+",round(casos00[3]/7,2),"%    \n",txt_comunas_mas_aumento[4],"+",round(casos00[4]/7,2),"%    \n",txt_comunas_mas_aumento[5],"+",round(casos00[5]/7,2),"%    \n",sep=" "))
+
+posit<-read.csv("PositividadPorComuna.txt",sep=",",header=T)
+df_transpose <- data.frame(t(posit[,-c(1:5)]))
+nombres=row.names(df_transpose)
+n2=unlist(strsplit(nombres,"X"))
+n2=n2[-which(n2=="")]
+n2=gsub(".", "-", n2, fixed = TRUE)
+n2=as.Date(as.character(n2))
+n0=n2[which(as.Date(n2)<=max(as.Date(n2)))]
+posit2=df_transpose[which(as.Date(n2)==(as.Date(max(n0)))),]
+#posit2=as.matrix(posit2,nrow=1)
+#posit2=as.data.frame(posit2)
+names(posit2)=posit$Codigo.comuna
+idcom=as.numeric(names(posit2))
+posit2=as.numeric(posit2[order(idcom)])
+idcom=as.character(idcom[order(idcom)])
+#ftcomuna2$id_comuna==idcom
+
+p000=posit2[a]
+comunas_mas_posi=head(order(p000,decreasing = T),10)
+txt_comunas_mas_posi=ftcomuna2$txt_comuna[a][comunas_mas_posi]
+posit3=p000[comunas_mas_posi]
+cat(paste("Las comunas de más de 25.000 habitantes con mayor tasa de positividad del examen PCR en la ultima semana son:  \n  \n",txt_comunas_mas_posi[1],round(posit3[1],2),"%    \n",
+    txt_comunas_mas_posi[2],round(posit3[2],2),"%    \n",txt_comunas_mas_posi[3],round(posit3[3],2),"%    \n",txt_comunas_mas_posi[4],round(posit3[4],2),"%    \n",txt_comunas_mas_posi[5],round(posit3[5],2),"%    \n",sep=" "))
+
+
+
+```
+
+## Análisis de Cambio de tendencia
+
+```{r, incidence2, message=FALSE,echo=FALSE, results='asis'}
+  
+
+ftregion<-read.csv("ftregion.txt",sep=";",header=T)
+
+DATA2=ftregion %>% select(fch_confirmado,txt_nombreregion,cant_casosconfirmadosdiario)
+DATA2$fch_confirmado<-as.Date(DATA2$fch_confirmado)
+fecha=as.Date("2020-03-03")
+covid19_nhs=DATA2 %>%
+  mutate(forma = fch_confirmado-fecha)%>%
+  mutate(forma2 = as.character(fch_confirmado, format="%A"))
+
+covid19_nhs$forma=as.numeric(covid19_nhs$forma)
+nombres=c("date","nhs_region","count","day","weekday")
+colnames(covid19_nhs)<-(nombres)
+covid19_nhs$count=as.numeric(covid19_nhs$count)
+
+nhs_pathways_covid19<-covid19_nhs
+t=nhs_pathways_covid19%>%
+ arrange(nhs_region)
+
+nhs_pathways_covid19$date=as.Date(nhs_pathways_covid19$date)
+
+nhs_pathways_covid19<-filter(nhs_pathways_covid19,# nhs_region=='17. Norte Grande' |nhs_region=='18. Norte Chico' | nhs_region=='19. Zona Central' |nhs_region=='20. Zona Sur'| nhs_region=='21. Zona Austral'|nhs_region=='22. Regions Sin Metropolitana')
+
+ #                         nhs_region=='16. Región de Magallanes y Antártica Chilena')
+#nhs_pathways_covid19<-filter(nhs_pathways_covid19, id_region=='1'|id_region=='2'|id_region=='3'|id_region=='4'|id_region=='5'|id_region=='6'|id_region=='7'|id_region=='8'|id_region=='9'|id_region=='10'|id_region=='11'|id_region=='12'|id_region=='13'|id_region=='14'|id_region=='15'|id_region=='16')
+
+                           nhs_region=='01. Región de Arica y Parinacota'| nhs_region=='02. Región de Tarapacá'| nhs_region=='03. Región de Antofagasta' | nhs_region=='04. Región de Atacama' | nhs_region=='05. Región de Coquimbo' | nhs_region=='06. Región de Valparaíso' | nhs_region=='07. Región Metropolitana de Santiago'  | nhs_region=="08. Región del Libertador Bernardo O'Higgins"|nhs_region=='09. Región del Maule' |
+                           nhs_region=='10. Región del Ñuble'| nhs_region=='11. Región del Bío-Bío'| nhs_region=='12. Región de La Araucanía' | nhs_region=='13. Región de Los Ríos' | nhs_region=='14. Región de Los Lagos' | nhs_region=='15. Región de Aysén del General Ibañez del Campo' | nhs_region=='16. Región de Magallanes y Antártica Chilena'  )
+
+first_date <-"2020-03-16"
+last_date<-"2020-04-16"
+
+pathways_recent <- filter(nhs_pathways_covid19, date >= first_date)
+
+
+pathways_recent <- nhs_pathways_covid19 %>%
+  filter(date >= first_date)%>%
+  filter(date <= last_date)
+
+lookup <- select(pathways_recent, date, day, weekday) %>%  distinct()
+nhs_pathways_covid19$date<-as.Date(nhs_pathways_covid19$date)
+
+
+dat <-
+  pathways_recent %>%
+  incidence(date_index = date, groups = nhs_region, count = count) %>%
+  left_join(lookup, by = c("date_index" = "date"))
+
+
+models <- list(
+  regression = lm_model(count ~ day),
+  poisson_constant = glm_model(count ~ 1, family = "poisson"),
+  negbin_time = glm_nb_model(count ~ day),
+  negbin_time_weekday = glm_nb_model(count ~ day + weekday)
+)
+
+
+res <- asmodee(dat, models, method = evaluate_aic, alpha=0.05, k = 7)
+plot(res)
+#summary(res)
+#res$results
+```
