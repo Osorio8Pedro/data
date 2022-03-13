@@ -474,8 +474,8 @@ nhs_pathways_covid19<-filter(nhs_pathways_covid19,# nhs_region=='17. Norte Grand
                            nhs_region=='01. Región de Arica y Parinacota'| nhs_region=='02. Región de Tarapacá'| nhs_region=='03. Región de Antofagasta' | nhs_region=='04. Región de Atacama' | nhs_region=='05. Región de Coquimbo' | nhs_region=='06. Región de Valparaíso' | nhs_region=='07. Región Metropolitana de Santiago'  | nhs_region=="08. Región del Libertador Bernardo O'Higgins"|nhs_region=='09. Región del Maule' |
                            nhs_region=='10. Región del Ñuble'| nhs_region=='11. Región del Bío-Bío'| nhs_region=='12. Región de La Araucanía' | nhs_region=='13. Región de Los Ríos' | nhs_region=='14. Región de Los Lagos' | nhs_region=='15. Región de Aysén del General Ibañez del Campo' | nhs_region=='16. Región de Magallanes y Antártica Chilena'  )
 
-first_date <-"2022-02-03"
-last_date<-"2022-03-10"
+first_date <-"2022-02-06"
+last_date<-"2022-03-13"
 
 pathways_recent <- filter(nhs_pathways_covid19, date >= first_date)
 
